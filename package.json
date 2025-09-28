@@ -1,0 +1,15 @@
+{
+  "name": "moddy-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord minimal pour changer le statut (Railway ready)",
+  "main": "bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "author": "Jules",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.13.0"
+  }
+}
