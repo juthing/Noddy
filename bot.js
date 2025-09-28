@@ -1,71 +1,48 @@
-// bot.js
-import { Client, GatewayIntentBits, ActivityType, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, REST, Routes } from 'discord.js';
 
-// Crée le client
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Vérification des variables d'environnement
+if (!process.env.TOKEN || !process.env.CLIENT_ID) {
+  console.error("Erreur : Les variables d'environnement 'TOKEN' et 'CLIENT_ID' doivent être définies.");
+  process.exit(1);
+}
 
-// ID autorisé à changer le statut
-const OWNER_ID = '1164597199594852395';
-
-// Crée la commande slash
-const commands = [
-    new SlashCommandBuilder()
-        .setName('status')
-        .setDescription('Change le statut du bot (réservé au propriétaire)')
-        .addStringOption(option =>
-            option.setName('texte')
-                .setDescription('Texte du statut')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('type')
-                .setDescription('Type du statut (PLAYING, LISTENING, WATCHING, COMPETING)')
-                .setRequired(false))
-].map(command => command.toJSON());
-
-// Déploie la commande globalement
-const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-(async () => {
-    try {
-        console.log('Mise à jour des commandes...');
-        await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID),
-            { body: commands },
-        );
-        console.log('Commandes mises à jour !');
-    } catch (error) {
-        console.error(error);
-    }
-})();
-
-// Quand le bot est prêt
-client.once('ready', () => {
-    console.log(`${client.user.tag} est en ligne !`);
+// Création du client Discord
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 // Commande pour changer le statut
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
 
-    if (interaction.commandName === 'status') {
-        if (interaction.user.id !== OWNER_ID) {
-            return interaction.reply({ content: 'Tu n’as pas la permission.', ephemeral: true });
-        }
+  // Vérification de l'ID de l'utilisateur
+  if (message.content.startsWith('!setstatus') && message.author.id === process.env.CLIENT_ID) {
+    const args = message.content.split(' ').slice(1);
+    const newStatus = args.join(' ');
 
-        const newStatus = interaction.options.getString('texte');
-        const typeOption = interaction.options.getString('type') || 'PLAYING';
-
-        try {
-            await client.user.setActivity(newStatus, { type: ActivityType[typeOption.toUpperCase()] });
-            interaction.reply({ content: `Statut changé en : ${typeOption} ${newStatus}`, ephemeral: true });
-        } catch (err) {
-            console.error(err);
-            interaction.reply({ content: 'Erreur lors du changement du statut.', ephemeral: true });
-        }
+    if (newStatus) {
+      await client.user.setPresence({
+        activities: [{ name: newStatus, type: 0 }],
+        status: 'online'
+      });
+      message.reply(`Statut mis à jour : ${newStatus}`);
+    } else {
+      message.reply("Veuillez fournir un statut.");
     }
+  }
 });
 
-// Keep-alive pour Railway ou uptime monitoring
-setInterval(() => console.log('Bot toujours actif'), 5 * 60 * 1000);
-
-// Connexion
-client.login(process.env.TOKEN);
+// Connexion du client
+client.login(process.env.TOKEN)
+  .then(() => {
+    console.log('Bot connecté avec succès.');
+  })
+  .catch(err => {
+    console.error('Erreur de connexion :', err);
+    process.exit(1);
+  });
